@@ -13,10 +13,25 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Instant;
 import java.util.List;
 import java.util.Scanner;
+import java.util.UUID;
+
+import javax.crypto.SecretKey;
 
 public class NexmoApp {
     private static final String balanceEndpoint = "https://rest.nexmo.com/account/get-balance?api_key=%1s&api_secret=%2s";
@@ -154,11 +169,45 @@ public class NexmoApp {
         httppost.addHeader("Content-Type", "application/json; charset=UTF-8");
         httppost.addHeader("Accept", "application/json");
   
-        String auth = this.NEXMO_API_KEY + ":" + this.NEXMO_API_SECRET;
-        byte[] encodedAuth = Base64.encodeBase64(
-            auth.getBytes(StandardCharsets.ISO_8859_1));
-        String authHeader = "Basic " + new String(encodedAuth);
-        httppost.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
+        if (this.NEXMO_APP_ID != null && this.NEXMO_PRIVATE_KEY != null) {
+            try {
+                Path keyFilePath = Paths.get(this.NEXMO_PRIVATE_KEY);
+                String keyContent = new String(Files.readAllBytes(keyFilePath))
+                .replace("-----BEGIN PRIVATE KEY-----\n", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
+
+                try {
+                    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                    PrivateKey key = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(Base64.decodeBase64(keyContent)));
+                    String jws = Jwts.builder()
+                    .setHeaderParam("type", "JWT")
+                    .setSubject("mhall119")
+                    .claim("application_id", this.NEXMO_APP_ID)
+                    .claim("iat", Instant.now().getEpochSecond())
+                    .claim("jti", UUID.randomUUID().toString())
+                    .signWith(key)
+                    .compact();
+
+                    String authHeader = "Bearer " + jws;
+                    httppost.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
+                } catch (Exception ex) {
+                    System.err.println("Error processing private key");
+                    ex.printStackTrace();
+                    System.exit(1);
+                }
+            } catch (Exception ex) {
+                System.err.println("Error reading private key");
+                ex.printStackTrace();
+                System.exit(1);
+            }
+
+        } else if (this.NEXMO_API_KEY != null && this.NEXMO_API_SECRET != null) {
+            String authToken = this.NEXMO_API_KEY + ":" + this.NEXMO_API_SECRET;
+            byte[] encodedAuth = Base64.encodeBase64(authToken.getBytes());
+            String authHeader = "Basic " + new String(encodedAuth);
+            httppost.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
+        }
 
         CloseableHttpClient httpclient = HttpClientBuilder.create().build();
                 
