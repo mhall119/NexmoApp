@@ -102,10 +102,6 @@ public class NexmoApp {
                 System.err.println("Unknown command: "+command);
             }
 
-            // System.out.println("Hello Nexmo");
-
-            // System.out.println("API Key: "+app.NEXMO_API_KEY);
-            // System.out.println("Secret Key: "+app.NEXMO_SECRET_KEY);
         }
         catch( ParseException exp ) {
             // Command line options parsing failed
