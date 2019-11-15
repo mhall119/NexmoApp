@@ -38,7 +38,7 @@ To check your account balance, you will need to provide your Nexmo API key and A
 **Example:**
 
 ```
-java -jar ./build/libs/nexmoapp.jar balance -k abc123 -s asdfjkl
+java -jar ./build/libs/nexmoapp.jar balance --key abc123 --secret asdfjkl
 ```
 
 Returns:
